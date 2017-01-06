@@ -1,3 +1,11 @@
+#################################################################################
+# This file includes a variety of functions which implement the                 #
+# standing-travelling wave decomposition of Watt-Meyer and Kushner (JAS, 2015). #
+#                                                                               #
+# Oliver Watt-Meyer                                                             #
+# January 2017                                                                  #
+#################################################################################
+
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import colors
