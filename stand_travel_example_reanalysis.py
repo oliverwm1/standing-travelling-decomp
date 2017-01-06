@@ -3,7 +3,7 @@
 # applying them to some ERA-Interim reanalysis data.                                 #
 #                                                                                    #   
 # Oliver Watt-Meyer                                                                  #
-# September 2015                                                                     #
+# January 2017                                                                       #
 ######################################################################################
 
 import stand_travel_routines as wnfreq
