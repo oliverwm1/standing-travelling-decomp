@@ -1,12 +1,12 @@
 ################################################################################
-# This script shows how to use the functions in the wnfreq_routines package by
-# applying them to some artificial test data.
-#
-# Oliver Watt-Meyer
-# September 2015
+# This script shows how to use the functions in the wnfreq_routines package by #
+# applying them to some artificial test data.                                  #
+#                                                                              #
+# Oliver Watt-Meyer                                                            #
+# September 2015                                                               #
 ################################################################################
 
-import wnfreq_routines_2_3 as wnfreq
+import stand_travel_routines as wnfreq
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -91,10 +91,11 @@ cov_standing_travelling=2*abs(wnfreq_standing)*abs(wnfreq_travelling)
 # plot wavenumber-frequency spectrum
 vertical_scale=max([var_total[:T/2-plot_freq_cutoff+1,:].max(),var_total[T/2+plot_freq_cutoff:,:].max()])
 
-wnfreq.plot_wnfreq_spectrum_lineplots(var_total,2,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=8)
-wnfreq.plot_wnfreq_spectrum_lineplots(var_standing,2,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=8,second_plot=True)
-wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling,2,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=8,second_plot=True)
-wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling,2,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=8,second_plot=True)
+wnfreq_fig=plt.figure(2,figsize=(8,6))
+wnfreq.plot_wnfreq_spectrum_lineplots(var_total,wnfreq_fig,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=8)
+wnfreq.plot_wnfreq_spectrum_lineplots(var_standing,wnfreq_fig,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=8,second_plot=True)
+wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling,wnfreq_fig,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=8,second_plot=True)
+wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling,wnfreq_fig,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=8,second_plot=True)
 
 plt.legend()
 plt.tight_layout()

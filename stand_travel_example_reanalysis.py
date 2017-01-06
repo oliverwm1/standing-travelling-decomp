@@ -1,12 +1,12 @@
-################################################################################
-# This script shows how to use the functions in the wnfreq_routines package by
-# applying them to some ERA-Interim reanalysis data.
-#
-# Oliver Watt-Meyer
-# September 2015
-################################################################################
+######################################################################################
+# This script shows how to use the functions in the stand_travel_routines package by #
+# applying them to some ERA-Interim reanalysis data.                                 #
+#                                                                                    #   
+# Oliver Watt-Meyer                                                                  #
+# September 2015                                                                     #
+######################################################################################
 
-import wnfreq_routines_2_3 as wnfreq
+import stand_travel_routines as wnfreq
 import numpy as np
 from matplotlib import pyplot as plt
 import netCDF4 as nc4
@@ -37,13 +37,15 @@ wn_plot_realspace=1 # wavenumber for which to plot real space travelling/standin
 wn_str='Wave-'+str(wn_plot_realspace)
 
 plot_freq_cutoff=0
+smooth_amount=2
+plot_freq_cutoff_smooth=2
 
-lat_plot_list=[30,60]
+lat_plot_list=[30,60] # latitudes at which to plot spectra
 
 g=9.81 # for conversion from geopotential to geopotential height
 
 # load reanalysis data
-filename='dclimRem_z3d_500hPa_NDJFM_1979-1980_dailymean.nc'
+filename='z_anom_500hPa_NDJFM_1979-1980_ERAInterim.nc'
 var_name='dclimRem_Z_GDS0_ISBL'
 nc = nc4.Dataset(filename)
 data = nc.variables[var_name][:]
@@ -78,12 +80,35 @@ for lat_plot in lat_plot_list:
     # plot wavenumber-frequency spectrum and traveling/standing decomposition
     vertical_scale=max([var_total[:T/2-plot_freq_cutoff+1,:].max(),var_total[T/2+plot_freq_cutoff:,:].max()])
 
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_total,fig_num,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=5,fig_label=loc_label)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing,fig_num,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling,fig_num,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling,fig_num,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
+    fig=plt.figure(fig_num,figsize=(8,6))
+    plt.suptitle(loc_label+', raw power spectra')
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_total,fig,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=5)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
 
     plt.legend()
+    plt.tight_layout(rect=(0,0,1,0.97))
+    fig_num+=1
+
+    # compute smoothed spectra
+    var_total_smoothed=wnfreq.smooth_wnfreq_spectrum_gaussian(var_total,smooth_amount)
+    var_standing_smoothed=wnfreq.smooth_wnfreq_spectrum_gaussian(var_standing,smooth_amount)
+    var_travelling_smoothed=wnfreq.smooth_wnfreq_spectrum_gaussian(var_travelling,smooth_amount)
+    cov_standing_travelling_smoothed=wnfreq.smooth_wnfreq_spectrum_gaussian(cov_standing_travelling,smooth_amount)
+
+    # plot smoothed spectra
+    vertical_scale=max([var_total_smoothed[:T/2-plot_freq_cutoff_smooth+1,:].max(),var_total_smoothed[T/2+plot_freq_cutoff_smooth:,:].max()])
+
+    fig=plt.figure(fig_num,figsize=(8,6))
+    plt.suptitle(loc_label+', smoothed power spectra')
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_total_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,leg_label='Total',plot_xlim=5)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
+
+    plt.legend()
+    plt.tight_layout(rect=(0,0,1,0.97))
     fig_num+=1
 
     # compute inverted data and standing and travelling signals for wave wn_plot_realspace
