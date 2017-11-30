@@ -40,7 +40,7 @@ plot_freq_cutoff=0
 smooth_amount=2
 plot_freq_cutoff_smooth=2
 
-lat_plot_list=[30,60] # latitudes at which to plot spectra
+lat_plot_list=[60] # latitudes at which to plot spectra
 
 g=9.81 # for conversion from geopotential to geopotential height
 
@@ -63,7 +63,7 @@ N=len(lon)
 data = np.squeeze(data)
 
 # compute wavenumber-frequency spectrum, and standing/traveling decomposition
-(wnfreq_total,wnfreq_standing,wnfreq_travelling)=wnfreq.calc_wnfreq_spectrum(data,wn_plot_max)
+(wnfreq_total,wnfreq_standing,wnfreq_travelling)=wnfreq.calc_wnfreq_spectrum(data)
 
 for lat_plot in lat_plot_list:
     # find indices for particular level and latitude we want to plot
@@ -82,10 +82,10 @@ for lat_plot in lat_plot_list:
 
     fig=plt.figure(fig_num,figsize=(8,6))
     plt.suptitle(loc_label+', raw power spectra')
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_total,fig,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=5)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling,fig,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_total[:,:wn_plot_max],fig,plot_freq_cutoff,vertical_scale,leg_label='Total',plot_xlim=5)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing[:,:wn_plot_max],fig,plot_freq_cutoff,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling[:,:wn_plot_max],fig,plot_freq_cutoff,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling[:,:wn_plot_max],fig,plot_freq_cutoff,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
 
     plt.legend()
     plt.tight_layout(rect=(0,0,1,0.97))
@@ -102,19 +102,19 @@ for lat_plot in lat_plot_list:
 
     fig=plt.figure(fig_num,figsize=(8,6))
     plt.suptitle(loc_label+', smoothed power spectra')
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_total_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,leg_label='Total',plot_xlim=5)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
-    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling_smoothed,fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_total_smoothed[:,:wn_plot_max],fig,plot_freq_cutoff_smooth,vertical_scale,leg_label='Total',plot_xlim=5)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_standing_smoothed[:,:wn_plot_max],fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-r',leg_label='Standing',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(var_travelling_smoothed[:,:wn_plot_max],fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-b',leg_label='Traveling',plot_xlim=5,second_plot=True)
+    wnfreq.plot_wnfreq_spectrum_lineplots(cov_standing_travelling_smoothed[:,:wn_plot_max],fig,plot_freq_cutoff_smooth,vertical_scale,my_linestyle='-g',leg_label='Covar',plot_xlim=5,second_plot=True)
 
     plt.legend()
     plt.tight_layout(rect=(0,0,1,0.97))
     fig_num+=1
 
     # compute inverted data and standing and travelling signals for wave wn_plot_realspace
-    data_lev_invert_total=wnfreq.invert_wnfreq_spectrum(wnfreq_total[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace,N)
-    data_lev_invert_travelling=wnfreq.invert_wnfreq_spectrum(wnfreq_travelling[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace,N)
-    data_lev_invert_standing=wnfreq.invert_wnfreq_spectrum(wnfreq_standing[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace,N)
+    data_lev_invert_total=wnfreq.invert_wnfreq_spectrum(wnfreq_total[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace)
+    data_lev_invert_travelling=wnfreq.invert_wnfreq_spectrum(wnfreq_travelling[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace)
+    data_lev_invert_standing=wnfreq.invert_wnfreq_spectrum(wnfreq_standing[:,lat_ind,:],wn_plot_realspace,wn_plot_realspace)
 
     # plot inverted data for wave wn_plot_realspace
     plt.figure(fig_num,figsize=(10,6))
@@ -130,5 +130,29 @@ for lat_plot in lat_plot_list:
     plt.subplot(133)
     plot_hovmuller(lon,range(T),data_lev_invert_travelling,my_title=wn_str+' Travelling')
 
+    vertical_scale=var_total.max()
+    plt.figure(fig_num,figsize=(12,10))
+    fig_num+=1
+    plt.subplot(221)
+    plt.title('Total')
+    wnfreq.plot_wnfreq_spectrum_contourf_WK99(var_total/vertical_scale)
+    plt.xlim([-8,8])
+    plt.ylabel('Frequency [days^-1]')
+    plt.subplot(222)
+    plt.title('Standing')
+    wnfreq.plot_wnfreq_spectrum_contourf_WK99(var_standing/vertical_scale)
+    plt.xlim([-8,8])
+    plt.subplot(223)
+    plt.title('Travelling')
+    wnfreq.plot_wnfreq_spectrum_contourf_WK99(var_travelling/vertical_scale)
+    plt.xlim([-8,8])
+    plt.xlabel('Wavenumber')
+    plt.ylabel('Frequency [days^-1]')
+    plt.subplot(224)
+    plt.title('Covar')
+    wnfreq.plot_wnfreq_spectrum_contourf_WK99(cov_standing_travelling/vertical_scale)
+    plt.xlim([-8,8])
+    plt.xlabel('Wavenumber')
+    plt.tight_layout()
 
 plt.show()
