@@ -3,7 +3,7 @@
 Introduction
 ------------
 
-The routines included in this repository implement the spectral decomposition defined in Watt-Meyer and Kushner (JAS, 2015). This decomposition takes in two-dimensional data (usually time versus longitude), applies a 2D discrete Fourier transform, and then further separates the Fourier coefficients into standing and travelling components. The details of the method are described in the above-referenced article.
+The routines included in this repository implement the spectral decomposition defined in Watt-Meyer and Kushner (JAS, 2015). This decomposition takes in two-dimensional data (usually time versus longitude), applies a 2D discrete Fourier transform, and then further separates the Fourier coefficients into standing and travelling components. The details of the method are described in the above-referenced article, which can be found here: https://doi.org/10.1175/JAS-D-14-0214.1
 
 
 Description of contents
