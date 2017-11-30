@@ -9,8 +9,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import colors
+from matplotlib.cm import get_cmap
 
-def calc_wnfreq_spectrum(data,wn_max):
+def calc_wnfreq_spectrum(data):
     """Compute total, standing and travelling spectra of input data.
 
     Compute the spectral analysis of Watt-Meyer and Kushner (JAS, 2015).
@@ -36,17 +37,18 @@ def calc_wnfreq_spectrum(data,wn_max):
     """
     data_shape=np.shape(data)
 
-    # calculate 2D Fourier transform on time and longitude axes
-    fft2_data=np.fft.fft2(data,axes=(0,len(data_shape)-1))
+    # calculate real 2D Fourier transform on time and longitude axes (i.e. assuming
+    # input data is real)
+    fft2_data=np.fft.rfft2(data,axes=(0,len(data_shape)-1))
 
-    # rearrange data so freq=0 point is at centre of time dimension, and only keep wn_max wavenumbers
-    fft2_trans=transform_wnfreq_spectrum(fft2_data,wn_max)
+    # rearrange data so freq=0 point is at centre of time dimension
+    fft2_trans=np.fft.fftshift(fft2_data,axes=0)
 
-    # if the data had an even number of timesteps, remove the last Fourier coefficient, which corresponds
-    # to the Nyquist frequency and doesn't have a corresponding opposite-sign frequency.
+    # if the data had an even number of timesteps, remove and store the first Fourier coefficient,
+    # which corresponds to the Nyquist frequency and doesn't have a corresponding opposite-sign frequency.
     if data.shape[0]%2==0:
-		fft2_nyquist=fft2_trans[data_shape[0]-1:data_shape[0],...]
-		fft2_trans=fft2_trans[:-1,...]
+		fft2_nyquist=fft2_trans[0:1,...]
+		fft2_trans=fft2_trans[1:,...]
 
     # compute magnitudes and phases of fourier coefficients
     fft2_trans_abs=np.abs(fft2_trans)
@@ -61,14 +63,14 @@ def calc_wnfreq_spectrum(data,wn_max):
 
     # if data had an even number of timesteps, append back on the Nyquist frequency component
     if data.shape[0]%2==0:
-		fft2_trans=np.append(fft2_trans,fft2_nyquist,axis=0)
-		fft2_standing=np.append(fft2_standing,np.zeros(np.shape(fft2_nyquist),dtype='complex'),axis=0)
-		fft2_travelling=np.append(fft2_travelling,fft2_nyquist,axis=0)
+		fft2_trans=np.append(fft2_nyquist,fft2_trans,axis=0)
+		fft2_standing=np.append(np.zeros(np.shape(fft2_nyquist),dtype='complex'),fft2_standing,axis=0)
+		fft2_travelling=np.append(fft2_nyquist,fft2_travelling,axis=0)
 
     return (fft2_trans,fft2_standing,fft2_travelling)
 
 
-def invert_wnfreq_spectrum(fft_coeffs_in,wn_min,wn_max,N,tol=1e-6):
+def invert_wnfreq_spectrum(fft_coeffs_in,wn_min,wn_max):
     """Compute real space inverse of fft_coeffs_in, summed over wavenumber wn_min to wn_max.
 
     Invert fft_coeffs_in to real space and time. The wavenumbers used for the inversion are
@@ -82,8 +84,6 @@ def invert_wnfreq_spectrum(fft_coeffs_in,wn_min,wn_max,N,tol=1e-6):
 	of calc_wnfreq_spectra
     wn_min : int, Minimum wavenumber for which to compute inverse.
     wn_max : int,  Maximum wavenumer for which to compute inverse.
-    N : int, Number of points of longitude to invert data onto.
-	tol : float, default=1e-6. Maximum allowable imaginary component for the inverted data.
 
     Returns
     -------
@@ -98,89 +98,14 @@ def invert_wnfreq_spectrum(fft_coeffs_in,wn_min,wn_max,N,tol=1e-6):
     fft_coeffs_copy[...,:wn_min]=0.0
     fft_coeffs_copy[...,wn_max+1:]=0.0
 
-    # put coefficients back in "standard" fft order, fill with zeros in order
-    # to have N wavenumbers
-    fft_coeffs_in=untransform_wnfreq_spectrum(fft_coeffs_copy,N)
+    # put coefficients back in "standard" fft order
+    fft_coeffs_in=np.fft.ifftshift(fft_coeffs_copy,axes=0)
 
     # compute inverse fourier transform
-    data_out=np.fft.ifft2(fft_coeffs_in,axes=(0,len(fft_coeffs_shape)-1))
+    data_out=np.fft.irfft2(fft_coeffs_in,axes=(0,len(fft_coeffs_shape)-1))
 
-    # check that inverted data is real to within some tolerance
-    assert abs(np.imag(data_out)).max()<tol
+    return data_out
 
-    return np.real(data_out)
-
-
-def transform_wnfreq_spectrum(fft_coeffs_in,wn_max):
-    """Rearrange Fourier coefficients and limit to wn_max wavenumbers.
-
-    Shift Fourier coefficients such that the frequency axis has the
-    zero-frequency component at the center, and goes from positive (i.e.
-    westward) frequencies to negative (i.e. eastward). Also limit the
-    wavenumbers of wn_max, and store them starting from 0 to wn_max.
-
-    Parameters
-    ----------
-    fft_coeffs_in : complex ndarray, where first dimension is frequency, and last dimension is wavenumber
-		Input Fourier coefficients ordered following standard output of fft2.
-    wn_max : int
-		Largest wavenumber to keep in output.
-
-    Returns
-    -------
-    fft2_coeffs_out : complex ndarray, same dimensions as input except final dimensional has length wn_max+1
-		Rearranged coefficients, limited to wn_max wavenumbers.
-
-    """
-    fft_coeffs_out=fft_coeffs_in[...,0:wn_max+1] # keep up to wn_max wavenumbers (including wave-0, i.e. zonal mean)
-    fft_coeffs_out=np.fft.fftshift(fft_coeffs_out,axes=0) # shift frequency axis so it is centered at zero
-    fft_coeffs_out=fft_coeffs_out[::-1,...] # invert order of frequency components (so westward first, then eastward)
-
-    return fft_coeffs_out
-
-def untransform_wnfreq_spectrum(fft_coeffs_in,N):
-    """Rearrange Fourier coefficients and pad to N wavenumbers.
-
-    Performs the opposite operations of transform_wnfreq_spectrum to make data
-    with limited number of wavenumbers and frequency centered on 0 into the
-    appropriate form for ifft2.
-
-    Parameters
-    ----------
-    fft_coeffs_in : complex ndarray, where first dimension is frequency, and last dimension is wavenumber
-		Input Fourier coefficients ordered following output of
-		transform_wnfreq_spectrum.
-    N : int
-		Number of points of longitude for which to calculate realspace data.
-
-    Returns
-    -------
-    fft2_coeffs_out : complex ndarray, same dimensions as input except final dimension has length N
-		Rearranged coefficients, padded to N wavenumbers.
-
-    """
-    fft_coeffs_shape=np.shape(fft_coeffs_in)
-    num_dim=len(fft_coeffs_shape)
-    wn=fft_coeffs_shape[-1] # number of wavenumbers in input data
-    T=fft_coeffs_shape[0] # number of frequencies in input data
-
-    # create output coefficient array with N wavenumbers
-    fft_coeffs_out_shape=np.array(fft_coeffs_shape)
-    fft_coeffs_out_shape[num_dim-1]=N
-    fft_coeffs_out=np.zeros(fft_coeffs_out_shape,dtype='complex')
-
-    fft_coeffs_in=fft_coeffs_in[::-1,...] # reverse order of frequencies
-
-    fft_coeffs_out[...,0:wn]=fft_coeffs_in
-    if T%2==0:
-        fft_coeffs_out[0,...,-1:-wn:-1]=np.conj(fft_coeffs_in[0,...,1:])
-        fft_coeffs_out[1:,...,-1:-wn:-1]=np.conj(fft_coeffs_in[-1:0:-1,...,1:])
-    else:
-        fft_coeffs_out[...,-1:-wn:-1]=np.conj(fft_coeffs_in[::-1,...][...,1:])
-
-    fft_coeffs_out=np.fft.ifftshift(fft_coeffs_out,axes=0) # reverse shift of frequencies
-
-    return fft_coeffs_out
 
 def smooth_wnfreq_spectrum_gaussian(fft_coeffs_in,smooth_amount):
     """Smooth Fourier coefficients over frequency.
@@ -248,9 +173,12 @@ def plot_wnfreq_spectrum_lineplots(fft_coeffs,fig,freq_cutoff,scale_factor,plot_
     if T%2==0:
         T-=1
         freq=freq[1:]
-        fft_coeffs=fft_coeffs[:-1,...]
+        fft_coeffs=fft_coeffs[1:,...]
 
     plot_wavenumbers=np.size(fft_coeffs,axis=1)
+
+    # invert order of frequency axis of coefficients, so plotting westward on left, eastward on right
+    fft_coeffs=fft_coeffs[::-1,:]
 
     ax1 = fig.add_subplot(111)
 
@@ -294,70 +222,66 @@ def plot_wnfreq_spectrum_lineplots(fft_coeffs,fig,freq_cutoff,scale_factor,plot_
         ax1.grid(axis='y')
         ax2.grid(axis='x')
 
+def transform_spectrum_to_WK99(fft_coeffs):
+	T=np.size(fft_coeffs,axis=0)
+	num_wn=np.size(fft_coeffs,axis=1)
 
-def plot_wnfreq_spectrum_contourf(fft_coeffs,fig_num,freq_cutoff,scale_factor,title='',plot_xlim=2.0,my_ylabel='Wavenumber'):
-    """Plot wavenumber-frequency spectrum as filled contour plot
+	# rearrange coefficients
+	if T%2==0:
+		fft_coeffs_WK99=np.zeros((2*(num_wn-1)+1,T/2))
+		fft_coeffs_WK99[:num_wn-1,:]=np.transpose(fft_coeffs[T/2:,1:][:,::-1])
+		fft_coeffs_WK99[num_wn-1,:]=np.transpose(fft_coeffs[T/2:,0])
+		fft_coeffs_WK99[num_wn:,:]=np.transpose(fft_coeffs[1:T/2+1,1:][::-1,:])
+	else:
+		#T-=1
+		#fft_coeffs=fft_coeffs[1:,:]
+		fft_coeffs_WK99=np.zeros((2*(num_wn-1)+1,T/2))
+		fft_coeffs_WK99[:num_wn-1,:]=np.transpose(fft_coeffs[T/2:-1,1:][:,::-1])
+		fft_coeffs_WK99[num_wn-1,:]=np.transpose(fft_coeffs[T/2:-1,0])
+		fft_coeffs_WK99[num_wn:,:]=np.transpose(fft_coeffs[1:T/2+1,1:][::-1,:])
 
-    Plot filled contour plot of spectral power as function of wavenumber and frequency.
+	fft_coeffs_WK99=np.transpose(fft_coeffs_WK99)
 
-    Parameters
-    ----------
-    fft_coeffs : real 2D array, with dimensions (freq x wavenumber)
-	Input coefficients for plotting. Note is assumed the input coefficients
+	return fft_coeffs_WK99
+
+def plot_wnfreq_spectrum_contourf_WK99(fft_coeffs,data_freq=1,log_scale=False,cons=np.arange(0,1.01,.1),plot_style='contourf',plot_axis='None'):
+	"""Plot wavenumber-frequency spectrum as filled contour plot, but with wavenumber on x-axis
+	in the style of Wheeler and Kiladis (1999).
+
+	Plot filled contour plot of spectral power as function of wavenumber and frequency.
+
+	Parameters
+	----------
+	fft_coeffs : real 2D array, with dimensions (freq x wavenumber)
+	Input coefficients for plotting. Note it is assumed the input coefficients
 	are real, i.e. the power spectrum has already been computed.
-    fig_num : int
-        The figure number in which to plot the data.
-    freq_cutoff : int
-        Integer representing how many frequency indices away from the zero-
-	frequency to start plotting the spectrum.
-    scale_factor : float
-        The value by which all input data scaled for plotting.
 
+	"""
 
-    """
-    T=np.size(fft_coeffs,axis=0)
-    freq=np.fft.fftshift(np.fft.fftfreq(T))
+	# first modify fft_coeffs array so that it spans -max_wavenumber to +max_wavenumber and 0 to max_freq
+	fft_coeffs_WK99=transform_spectrum_to_WK99(fft_coeffs)
 
-    # if there is an even number of frequencies, remove the Nyquist frequency so that frequencies are symmetric about zero.
-    if T%2==0:
-	T-=1
-	freq=freq[1:]
-	fft_coeffs=fft_coeffs[:-1,...]
+	# generate frequency coordinate
+	T=np.size(fft_coeffs,axis=0)
+	freq=np.fft.fftshift(np.fft.fftfreq(T,d=data_freq))
+	freq=freq[T/2:]
+	
+	if T%2!=0:
+		freq=freq[:-1]
 
-    plot_wavenumbers=np.size(fft_coeffs,axis=1)
+	# generate wavenumber coordinate
+	num_wn=np.size(fft_coeffs,axis=1)
+	wn=np.arange(-num_wn+1,num_wn)
 
-    if title!='':
-        plt.suptitle(title+'. (scale='+str(round(scale_factor,1))+')')
+	if plot_axis=='None':
+		if plot_style=='contourf':
+			C=plt.contourf(wn,freq,fft_coeffs_WK99,cons,cmap=get_cmap('Greys'))
+		elif plot_style=='contour':
+			C=plt.contour(wn,freq,fft_coeffs_WK99,cons,colors='k')
+	else:
+		if plot_style=='contourf':
+			C=plot_axis.contourf(wn,freq,fft_coeffs_WK99,cons,cmap=get_cmap('Greys'))
+		elif plot_style=='contour':
+			C=plot_axis.contour(wn,freq,fft_coeffs_WK99,cons,colors='k')
 
-    lev_exp = np.arange(np.floor(np.log10(fft_coeffs.min())-1), np.ceil(np.log10(fft_coeffs.max())+1),0.5)
-    levs = np.power(10, lev_exp)
-
-    ax1 = fig.add_subplot(111)
-    ax1.contourf(freq[:T/2+1-freq_cutoff],range(1,plot_wavenumbers+1),np.transpose(fft_coeffs[:T/2-freq_cutoff+1,:]),levs,cmap=plt.get_cmap('Greys'),norm=colors.LogNorm())
-    ax1.contourf(freq[T/2+freq_cutoff:],range(1,plot_wavenumbers+1),np.transpose(fft_coeffs[T/2+freq_cutoff:,:]),levs,cmap=plt.get_cmap('Greys'),norm=colors.LogNorm())
-
-    my_xticks=np.array([-1./4.,-1./5.,-1./10.0,-1./20.0,-1./50.0,0.0,1./50.0,1./20.0,1./10.0,1./5.,1./4.])
-    my_xticks_freq_labels=['0.25','0.2','0.1','0.05','','0','','0.05','0.1','0.2','0.25']
-    my_xticks_period_labels=[4,5,10,20,50,'',50,20,10,5,4]
-
-    plt.xticks(my_xticks,my_xticks_freq_labels)
-    ax1.set_xlim([-1./plot_xlim,1./plot_xlim])
-    cur_xticks=ax1.get_xticks()
-    ax1.set_yticks(range(1,plot_wavenumbers))
-    ax1.set_ylabel(my_ylabel,fontsize=11)
-
-    ax1.set_ylim([1,plot_wavenumbers])
-    ax1.set_xlabel('Westward       Freq. [days$^{-1}$]       Eastward',labelpad=-.05)
-
-    ax2=ax1.twiny()
-    plt.yticks(range(1,plot_wavenumbers,1))
-
-    plt.xticks(my_xticks,my_xticks_period_labels)
-
-    ax2.set_xlim([-1./plot_xlim,1./plot_xlim])
-    ax2.set_xlabel('Westward        Period [days]        Eastward')
-
-    ax1.grid(axis='y')
-    ax2.grid(axis='x')
-
-
+	return C
